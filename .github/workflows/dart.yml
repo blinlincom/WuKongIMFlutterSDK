@@ -1,4 +1,4 @@
-name: Flutter Build and Package
+name: Flutter SDK Package
 
 on:
   push:
@@ -7,8 +7,46 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
+  # 分析和测试 SDK
+  analyze-and-test:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Analyze SDK code
+        run: flutter analyze --fatal-infos
+      
+      - name: Run SDK tests
+        run: flutter test
+      
+      - name: Format code
+        run: dart format --set-exit-if-changed .
+      
+      - name: Generate API documentation
+        run: |
+          # 安装 dartdoc 如果尚未安装
+          dart pub global activate dartdoc
+          dart doc .
+      
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-docs
+          path: doc/
+
+  # 构建示例应用（如果存在）
+  build-example:
+    runs-on: ubuntu-latest
+    needs: analyze-and-test
     steps:
       - uses: actions/checkout@v4
       
@@ -24,66 +62,102 @@ jobs:
           channel: 'stable'
           cache: true
       
-      - name: Check and prepare example directory
+      - name: Check if example directory exists
+        id: check-example
         run: |
-          # 检查example目录是否存在
-          if [ ! -d "example" ]; then
-            echo "example目录不存在，创建example目录并初始化Flutter应用"
-            flutter create --org com.example --project-name example_app example
+          if [ -d "example" ]; then
+            echo "has_example=true" >> $GITHUB_OUTPUT
           else
-            echo "example目录存在"
-            cd example
-            # 检查是否有pubspec.yaml
-            if [ ! -f "pubspec.yaml" ]; then
-              echo "example目录中没有pubspec.yaml，初始化Flutter应用"
-              cd ..
-              flutter create --org com.example --project-name example_app example
-            else
-              echo "example目录中有pubspec.yaml"
-              # 检查是否有lib/main.dart
-              if [ ! -f "lib/main.dart" ]; then
-                echo "example目录中没有lib/main.dart，创建默认的main.dart"
-                mkdir -p lib
-                cat > lib/main.dart << 'EOF'
-import 'package:flutter/material.dart';
-
-void main() {
-  runApp(const MaterialApp(
-    home: Scaffold(
-      body: Center(
-        child: Text('Example App for SDK'),
-      ),
-    ),
-  ));
-}
-EOF
-              fi
-            fi
+            echo "has_example=false" >> $GITHUB_OUTPUT
           fi
       
-      - name: Install dependencies in example
+      - name: Build example Android APK
+        if: steps.check-example.outputs.has_example == 'true'
         run: |
           cd example
           flutter pub get
-      
-      - name: Build Android APK from example
-        run: |
-          cd example
           flutter build apk --release --split-per-abi
       
-      - name: Upload APK artifacts
+      - name: Upload example APK artifacts
+        if: steps.check-example.outputs.has_example == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: android-apks
+          name: example-android-apks
           path: example/build/app/outputs/flutter-apk/
       
-      - name: Build Web app from example
+      - name: Build example Web app
+        if: steps.check-example.outputs.has_example == 'true'
         run: |
           cd example
           flutter build web --release
       
-      - name: Upload Web build artifacts
+      - name: Upload example Web build artifacts
+        if: steps.check-example.outputs.has_example == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: web-build
+          name: example-web-build
           path: example/build/web/
+
+  # 发布到 pub.dev (可选)
+  publish:
+    runs-on: ubuntu-latest
+    needs: [analyze-and-test, build-example]
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      
+      - name: Install dependencies
+        run: flutter pub get
+      
+      - name: Check package validity
+        run: flutter pub publish --dry-run
+      
+      - name: Publish to pub.dev
+        run: |
+          # 取消注释以下行以实际发布
+          # flutter pub publish --token ${{ secrets.PUB_DEV_TOKEN }}
+        env:
+          PUB_DEV_TOKEN: ${{ secrets.PUB_DEV_TOKEN }}
+
+  # 创建 ZIP 发布包
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [analyze-and-test, build-example]
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create release package
+        run: |
+          # 获取版本号
+          VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}')
+          PACKAGE_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}')
+          
+          # 创建发布目录
+          mkdir -p release
+          
+          # 复制必要的文件
+          cp -r lib release/
+          cp pubspec.yaml release/
+          cp README.md release/ 2>/dev/null || true
+          cp LICENSE release/ 2>/dev/null || true
+          cp CHANGELOG.md release/ 2>/dev/null || true
+          
+          # 创建 ZIP 包
+          cd release
+          zip -r ../${PACKAGE_NAME}-${VERSION}.zip .
+          
+          # 回到根目录
+          cd ..
+      
+      - name: Upload release package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-release
+          path: "*.zip"

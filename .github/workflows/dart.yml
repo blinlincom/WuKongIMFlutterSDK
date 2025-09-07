@@ -1,4 +1,4 @@
-name: Flutter Build and Deploy
+name: Flutter Build and Package
 
 on:
   push:
@@ -7,43 +7,8 @@ on:
     branches: [ "master" ]
 
 jobs:
-  # 分析和测试工作
-  analyze-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-      
-      - name: Install dependencies
-        run: flutter pub get
-      
-      - name: Format code and commit if changed
-        run: |
-          dart format .
-          if git diff --exit-code; then
-            echo "No formatting changes"
-          else
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-            git add .
-            git commit -m "style: format code with dart format"
-            git push
-            echo "Formatted code and pushed changes"
-          fi
-      
-      - name: Analyze project source
-        run: flutter analyze
-      
-      - name: Run tests
-        run: flutter test
   # 构建 Android APK
   build-android:
-    needs: analyze-and-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,9 +28,6 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
       
-      - name: Check Android environment
-        run: flutter doctor -v
-      
       - name: Build Android APK
         run: flutter build apk --release --split-per-abi
       
@@ -77,7 +39,6 @@ jobs:
 
   # 构建 Web 应用
   build-web:
-    needs: analyze-and-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

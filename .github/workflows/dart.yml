@@ -1,4 +1,4 @@
-name: Dart Build and Deploy
+name: Flutter Build and Deploy
 
 on:
   push:
@@ -7,26 +7,29 @@ on:
     branches: [ "master" ]
 
 jobs:
-  # 原有的分析和测试工作
+  # 分析和测试工作
   analyze-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          sdk: stable
+          channel: 'stable'
+          cache: true
       
       - name: Install dependencies
-        run: dart pub get
+        run: flutter pub get
       
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
       
       - name: Analyze project source
-        run: dart analyze --fatal-infos
+        run: flutter analyze
       
       - name: Run tests
-        run: dart test
+        run: flutter test
 
   # 构建 Android APK
   build-android:
@@ -46,8 +49,6 @@ jobs:
         with:
           channel: 'stable'
           cache: true
-          cache-key: flutter-pub-cache
-          cache-path: ~/.pub-cache
       
       - name: Install Flutter dependencies
         run: flutter pub get
@@ -93,6 +94,8 @@ jobs:
     needs: build-web
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       

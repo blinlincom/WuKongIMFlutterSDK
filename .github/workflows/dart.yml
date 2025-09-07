@@ -28,6 +28,27 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
       
+      - name: Upgrade Gradle project
+        run: |
+          # 备份重要文件
+          cp -r android android_backup
+          # 创建一个临时目录来重新生成项目
+          mkdir temp_project
+          cd temp_project
+          flutter create -t app --org com.example temp_app
+          # 复制新生成的Android配置到原项目
+          cp -r temp_app/android ../android_new
+          cd ..
+          # 恢复原项目的自定义配置（如果有）
+          # 这里需要根据您的项目结构调整
+          cp android_backup/app/src/main/AndroidManifest.xml android_new/app/src/main/
+          cp android_backup/app/src/main/res/values/strings.xml android_new/app/src/main/res/values/
+          cp android_backup/app/src/main/res/drawable* android_new/app/src/main/res/ -r || true
+          cp android_backup/app/src/main/res/mipmap* android_new/app/src/main/res/ -r || true
+          # 替换原Android目录
+          rm -rf android
+          mv android_new android
+      
       - name: Build Android APK
         run: flutter build apk --release --split-per-abi
       

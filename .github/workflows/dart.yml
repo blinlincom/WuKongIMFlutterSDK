@@ -7,7 +7,6 @@ on:
     branches: [ "master" ]
 
 jobs:
-  # 分析和测试 SDK
   analyze-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -24,15 +23,11 @@ jobs:
       
       - name: Analyze SDK code (with custom rules)
         run: |
-          # 创建一个自定义分析选项文件，忽略某些警告
           cat > analysis_options.yaml << 'EOF'
 analyzer:
   errors:
-    # 忽略未使用的导入警告（在SDK中常见）
     unused_import: ignore
-    # 忽略生产代码中的print语句（在示例中常见）
     avoid_print: ignore
-    # 忽略弃用成员的使用（在兼容性代码中常见）
     deprecated_member_use: ignore
     
   exclude:
@@ -45,7 +40,6 @@ analyzer:
 
 linter:
   rules:
-    # 只启用关键规则
     - always_declare_return_types
     - always_use_package_imports
     - avoid_empty_else
@@ -97,9 +91,8 @@ linter:
     - valid_regexps
 EOF
           
-          # 运行分析，但只对错误失败，不对警告失败
           flutter analyze --fatal-warnings || echo "分析完成，有警告但继续流程"
-        continue-on-error: true  # 允许分析有警告时继续
+        continue-on-error: true
       
       - name: Run SDK tests
         run: flutter test
@@ -109,19 +102,17 @@ EOF
       
       - name: Generate API documentation
         run: |
-          # 安装 dartdoc 如果尚未安装
           dart pub global activate dartdoc 2>/dev/null || true
           dart doc . 2>/dev/null || echo "文档生成失败，但继续流程"
-        continue-on-error: true  # 允许文档生成失败时继续
+        continue-on-error: true
       
       - name: Upload documentation
         uses: actions/upload-artifact@v4
         with:
           name: api-docs
           path: doc/
-        if: success() || failure()  # 即使之前步骤失败也上传
+        if: success() || failure()
 
-  # 构建示例应用（如果存在）
   build-example:
     runs-on: ubuntu-latest
     steps:
@@ -175,7 +166,6 @@ EOF
           name: example-web-build
           path: example/build/web/
 
-  # 创建 ZIP 发布包
   create-release:
     runs-on: ubuntu-latest
     steps:
@@ -189,25 +179,19 @@ EOF
       
       - name: Create release package
         run: |
-          # 获取版本号
           VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}')
           PACKAGE_NAME=$(grep 'name:' pubspec.yaml | awk '{print $2}')
           
-          # 创建发布目录
           mkdir -p release
           
-          # 复制必要的文件
           cp -r lib release/
           cp pubspec.yaml release/
           cp README.md release/ 2>/dev/null || true
           cp LICENSE release/ 2>/dev/null || true
           cp CHANGELOG.md release/ 2>/dev/null || true
           
-          # 创建 ZIP 包
           cd release
           zip -r ../${PACKAGE_NAME}-${VERSION}.zip .
-          
-          # 回到根目录
           cd ..
       
       - name: Upload release package

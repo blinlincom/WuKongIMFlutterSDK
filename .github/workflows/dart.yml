@@ -27,24 +27,54 @@ jobs:
       - name: Check example directory structure
         run: |
           cd example
+          echo "当前目录: $(pwd)"
+          echo "目录内容:"
           ls -la
+          echo "android目录内容:"
+          ls -la android/ || echo "没有android目录"
       
-      - name: Create Flutter project in example directory
+      - name: Convert example to Flutter project if needed
         run: |
           cd example
-          flutter create . --project-name example --org com.example
+          # 如果android目录不存在，则创建Flutter项目
+          if [ ! -d "android" ]; then
+            echo "创建Flutter项目结构..."
+            flutter create --org com.example --project-name example_app .
+          else
+            echo "Android目录已存在，跳过创建项目"
+          fi
       
-      - name: Install dependencies in example
+      - name: Install dependencies
         run: |
           cd example
           flutter pub get
       
-      - name: Build Android APK
+      - name: Clean build
         run: |
           cd example
-          flutter build apk --release --split-per-abi
+          flutter clean
+      
+      - name: Build Android APK with verbose logging
+        run: |
+          cd example
+          # 将详细日志输出到文件，同时也在控制台显示（但GitHub Actions可能会截断）
+          flutter build apk --release --split-per-abi --verbose 2>&1 | tee build_log.txt
+        continue-on-error: true
+      
+      - name: Upload build logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-logs
+          path: example/build_log.txt
+      
+      - name: Check build success
+        if: failure()
+        run: |
+          echo "构建失败，请查看上传的构建日志"
+          exit 1
       
       - name: Upload APK artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: android-apks
@@ -61,6 +91,7 @@ jobs:
           name: web-build
           path: example/build/web/
 
+  # 部署到 GitHub Pages (可选)
   deploy-web:
     needs: build
     if: github.ref == 'refs/heads/master'

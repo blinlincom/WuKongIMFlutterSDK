@@ -13,27 +13,28 @@ class HttpUtils {
   // static String apiURL = "https://api.githubim.com";
   static String apiURL = "http://62.234.8.38:7090/v1";
   // static String apiURL = "http://175.27.245.108:15001";
-  
+
   static Dio? _dio;
-  
+
   /// Get Dio instance with trust all certificates configuration
   static Dio get dio {
     if (_dio == null) {
       final httpClient = HttpClient();
       httpClient.badCertificateCallback =
-          (X509Certificate cert, String host, int port) => true; // Trust all certificates
-      
+          (X509Certificate cert, String host, int port) =>
+              true; // Trust all certificates
+
       _dio = Dio(BaseOptions(
         baseUrl: apiURL,
         // 允许所有状态码，避免自动抛出异常
         validateStatus: (status) => true,
       ));
-      (_dio!.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate = 
+      (_dio!.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate =
           (client) => httpClient;
     }
     return _dio!;
   }
-  
+
   static String getAvatarUrl(String uid) {
     return "$apiURL/users/$uid/avatar";
   }
@@ -50,7 +51,7 @@ class HttpUtils {
         'device_flag': 0,
         'device_level': 1
       });
-      
+
       if (response.statusCode == HttpStatus.ok) {
         UserInfo.name = response.data['name'];
       }
@@ -73,8 +74,8 @@ class HttpUtils {
     return '';
   }
 
-  static Future<void> syncConversation(String lastSsgSeqs, int msgCount, int version,
-      Function(WKSyncConversation) back) async {
+  static Future<void> syncConversation(String lastSsgSeqs, int msgCount,
+      int version, Function(WKSyncConversation) back) async {
     try {
       // 检查是否已登录
       if (UserInfo.uid.isEmpty) {
@@ -90,7 +91,7 @@ class HttpUtils {
         "msg_count": msgCount,
         "device_uuid": UserInfo.uid,
       });
-      
+
       WKSyncConversation conversation = WKSyncConversation();
       conversation.conversations = [];
 
@@ -149,11 +150,11 @@ class HttpUtils {
         "channel_id": channelID,
         "channel_type": channelType,
         "start_message_seq": startMsgSeq,
-        "end_message_seq": endMsgSeq, 
+        "end_message_seq": endMsgSeq,
         "limit": limit,
         "pull_mode": pullMode
       });
-      
+
       if (response.statusCode == HttpStatus.ok) {
         var data = response.data;
         WKSyncChannelMsg msg = WKSyncChannelMsg();
@@ -232,7 +233,7 @@ class HttpUtils {
       }
 
       final response = await dio.get('/groups/$groupId');
-      
+
       if (response.statusCode == HttpStatus.ok) {
         var json = response.data;
         var channel = WKChannel(groupId, WKChannelType.group);
@@ -266,7 +267,7 @@ class HttpUtils {
       }
 
       final response = await dio.get('/users/$uid');
-      
+
       if (response.statusCode == HttpStatus.ok) {
         var json = response.data;
         var channel = WKChannel(uid, WKChannelType.personal);
@@ -285,8 +286,8 @@ class HttpUtils {
     }
   }
 
-  static Future<bool> revokeMsg(String clientMsgNo, String channelId, int channelType,
-      int msgSeq, String msgId) async {
+  static Future<bool> revokeMsg(String clientMsgNo, String channelId,
+      int channelType, int msgSeq, String msgId) async {
     try {
       // 检查必要参数
       if (clientMsgNo.isEmpty || channelId.isEmpty || msgId.isEmpty) {
@@ -308,7 +309,7 @@ class HttpUtils {
         'message_seq': msgSeq,
         'message_id': msgId,
       });
-      
+
       if (response.statusCode == HttpStatus.ok) {
         print('消息撤回成功');
         return true;
@@ -325,8 +326,8 @@ class HttpUtils {
     }
   }
 
-  static Future<bool> deleteMsg(String clientMsgNo, String channelId, int channelType,
-      int msgSeq, String msgId) async {
+  static Future<bool> deleteMsg(String clientMsgNo, String channelId,
+      int channelType, int msgSeq, String msgId) async {
     try {
       // 检查必要参数
       if (clientMsgNo.isEmpty || channelId.isEmpty || msgId.isEmpty) {
@@ -347,7 +348,7 @@ class HttpUtils {
         'message_seq': msgSeq,
         'message_id': msgId,
       });
-      
+
       if (response.statusCode == HttpStatus.ok) {
         WKIM.shared.messageManager.deleteWithClientMsgNo(clientMsgNo);
         print('消息删除成功');
@@ -365,7 +366,8 @@ class HttpUtils {
     }
   }
 
-  static Future<void> syncMsgExtra(String channelId, int channelType, int version) async {
+  static Future<void> syncMsgExtra(
+      String channelId, int channelType, int version) async {
     try {
       final response = await dio.post('/message/extra/sync', data: {
         'login_uid': UserInfo.uid,
@@ -375,7 +377,7 @@ class HttpUtils {
         'limit': 100,
         'extra_version': version,
       });
-      
+
       if (response.statusCode == HttpStatus.ok) {
         var arrJson = response.data;
         if (arrJson != null && arrJson.length > 0) {
@@ -409,7 +411,7 @@ class HttpUtils {
         'channel_type': channelType,
         'unread': 0,
       });
-      
+
       if (response.statusCode == HttpStatus.ok) {
         print('Unread count cleared successfully');
       }
@@ -423,14 +425,14 @@ class HttpUtils {
     try {
       int maxSeq = await WKIM.shared.messageManager
           .getMaxMessageSeq(channelId, channelType);
-          
+
       final response = await dio.post('/message/offset', data: {
         'login_uid': UserInfo.uid,
         'channel_id': channelId,
         'channel_type': channelType,
         'message_seq': maxSeq
       });
-      
+
       if (response.statusCode == HttpStatus.ok) {
         WKIM.shared.messageManager.clearWithChannel(channelId, channelType);
       }

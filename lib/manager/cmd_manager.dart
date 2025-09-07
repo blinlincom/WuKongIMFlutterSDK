@@ -20,7 +20,7 @@ class WKCMDManager {
     // 解析命令
     String cmd = WKDBConst.readString(json, 'cmd');
     dynamic param = json['param'];
-    
+
     // 补充频道信息（如果缺失）
     if (param != null && param is Map) {
       if (!param.containsKey('channel_id')) {
@@ -28,7 +28,7 @@ class WKCMDManager {
         param['channel_type'] = json['channel_type'];
       }
     }
-    
+
     // 创建命令对象并分发
     WKCMD wkcmd = WKCMD();
     wkcmd.cmd = cmd;

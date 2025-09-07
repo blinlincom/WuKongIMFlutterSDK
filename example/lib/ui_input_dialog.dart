@@ -14,8 +14,8 @@ class InputDialog extends StatefulWidget {
   final String? hintText;
   final bool isOnlyText;
   @override
-  State<InputDialog> createState() => _InputDialogState(
-      title: title, hintText: hintText, back: back);
+  State<InputDialog> createState() =>
+      _InputDialogState(title: title, hintText: hintText, back: back);
 }
 
 enum RadioValue { personal, group }

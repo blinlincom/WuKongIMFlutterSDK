@@ -22,15 +22,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       
-      - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed .
+      - name: Format code and commit if changed
+        run: |
+          dart format .
+          if git diff --exit-code; then
+            echo "No formatting changes"
+          else
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add .
+            git commit -m "style: format code with dart format"
+            git push
+            echo "Formatted code and pushed changes"
+          fi
       
       - name: Analyze project source
         run: flutter analyze
       
       - name: Run tests
         run: flutter test
-
   # 构建 Android APK
   build-android:
     needs: analyze-and-test
